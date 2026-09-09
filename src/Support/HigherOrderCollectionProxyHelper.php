@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CalebDW\PhpstanLaravel\Support;
 
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\HigherOrderCollectionProxy;
 use PHPStan\Reflection\ClassReflection;
@@ -18,7 +19,7 @@ use PHPStan\Type\StringType;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
 
-class HigherOrderCollectionProxyHelper
+final class HigherOrderCollectionProxyHelper
 {
     /** @var array<string, bool> */
     private array $members = [];
@@ -156,7 +157,15 @@ class HigherOrderCollectionProxyHelper
                 $returnType = TypeCombinator::addNull($valueType);
                 break;
             case 'flatMap':
-                $returnType = $this->collectionHelper->generic(SupportCollection::class, $integerType, new MixedType());
+                $mapped = $methodOrPropertyReturnType;
+                if ($mapped->isIterable()->yes()) {
+                    $flatValue = $mapped->getIterableValueType();
+                } else {
+                    $related   = $mapped->getTemplateType(Relation::class, 'TRelatedModel');
+                    $flatValue = $related instanceof ErrorType ? new MixedType() : $related;
+                }
+
+                $returnType = $this->collectionHelper->generic(SupportCollection::class, $integerType, $flatValue);
                 break;
             case 'groupBy':
                 $returnType = $this->collectionHelper->generic(

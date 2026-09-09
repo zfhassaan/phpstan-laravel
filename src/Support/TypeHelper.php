@@ -4,12 +4,27 @@ declare(strict_types=1);
 
 namespace CalebDW\PhpstanLaravel\Support;
 
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Type\Type;
 
 use function collect;
 
 final class TypeHelper
 {
+    /**
+     * @param callable(ClassReflection): bool $filter
+     *
+     * @return list<string>
+     */
+    public function classNames(Type $type, callable $filter): array
+    {
+        return collect($type->getObjectClassReflections())
+            ->filter($filter)
+            ->map(static fn ($c) => $c->getDisplayName())
+            ->values()
+            ->all();
+    }
+
     /** @param class-string|array<class-string> $classes */
     public function isCalledOn(Type $type, array|string $classes): bool
     {
@@ -44,16 +59,25 @@ final class TypeHelper
         return collect($type->getObjectClassReflections())->every(static fn ($c) => $c->hasNativeProperty($name));
     }
 
-    /** @return list<string> */
-    public function constantStrings(Type $type): array
+    /** @return list<Type> */
+    public function constantValues(Type $type): array
     {
-        return collect($type->getConstantStrings())
-            ->map(static fn ($s) => $s->getValue())
+        return collect($type->getConstantScalarTypes())
             ->concat(
                 collect($type->getConstantArrays())
                     ->flatMap(static fn ($a) => $a->getValueTypes())
-                    ->flatMap($this->constantStrings(...)),
+                    ->flatMap($this->constantValues(...)),
             )
+            ->values()
+            ->all();
+    }
+
+    /** @return list<string> */
+    public function constantStrings(Type $type): array
+    {
+        return collect($this->constantValues($type))
+            ->flatMap(static fn ($t) => $t->getConstantStrings())
+            ->map(static fn ($s) => $s->getValue())
             ->values()
             ->all();
     }

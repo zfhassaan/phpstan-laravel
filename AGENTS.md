@@ -26,21 +26,30 @@ passes `User|Post` or `'name'|'email'`.
 A union handled member-by-member works for a single type for free. The
 reverse is not true.
 
+## Cheap checks first
+
+Rules and extensions run on a lot of nodes. Return early on cheap
+syntactic tests (identifier name, argument present, `instanceof`,
+abstract/interface/trait flags) before type resolution, reflection
+walks, file parsing, or container lookups. Short-circuit `&&` / `||`
+counts: put the cheaper operand first.
+
 ## Helpers, not copies
 
 Logic that more than one extension needs lives in `src/Support/`. Use it.
 
 | Helper | Use it for |
 | --- | --- |
-| `ColumnHelper` | Column / callback / dotted path resolution |
-| `CollectionHelper` | `generic()`, `toBase()`, model collection class |
+| `ColumnHelper` | Column / callback / dotted path / `mapSpread` slots |
+| `CollectionHelper` | `generic()`, `toBase()`, `flattenValue()`, `dottedLeaves()` |
 | `TypeHelper` | `isCalledOn`, constant strings, hasMethod/hasProperty |
 | `ModelHelper` | Instantiated model, key type |
 | `SelectHelper` | `Arr::select` / `Collection::select` shapes |
-
+| `FormRequestHelper` | `rules()` parsing, `validated()` shapes, request properties |
 
 Keep methods short. If an extension is growing a second copy of normalize /
-generic / column lookup, it belongs on a helper.
+generic / column lookup, it belongs on a helper. Do not inject one extension
+into another.
 
 ## Stubs vs extensions
 
@@ -61,8 +70,9 @@ Run the relevant type tests, not the whole suite:
 vendor/bin/phpunit tests/Type/GeneralTypeTest.php --filter collection-map-to-groups
 ```
 
-`phpcbf` and `composer test:types` (`phpstan analyse src`) after
-PHP changes. Doctrine Coding Standard
+`phpcbf`, `composer test:types` (`phpstan analyse src`) and
+`composer test:architecture` (`structarmed analyse`, layer rules in
+`structarmed.php`) after PHP changes. Doctrine Coding Standard
 
 ## Closures
 
