@@ -24,6 +24,7 @@ nav = [
     { "Relations" = "guide/relations.md" },
     { "Collections" = "guide/collections.md" },
     { "Cache return types" = "guide/cache.md" },
+    { "HTTP client responses" = "guide/http-client.md" },
     { "Configuration types" = "guide/config-types.md" },
     { "Custom types" = "guide/custom-types.md" },
   ]},

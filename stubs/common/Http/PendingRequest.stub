@@ -93,7 +93,34 @@ namespace Illuminate\Http\Client
      * @implements \ArrayAccess<array-key, mixed>
      * @mixin \Psr\Http\Message\ResponseInterface
      */
-    class Response implements \ArrayAccess, \Stringable {}
+    class Response implements \ArrayAccess, \Stringable
+    {
+        /**
+         * @param  string|null  $key
+         * @param  mixed  $default
+         * @param  int-mask<JSON_BIGINT_AS_STRING, JSON_INVALID_UTF8_IGNORE, JSON_INVALID_UTF8_SUBSTITUTE, JSON_OBJECT_AS_ARRAY, JSON_THROW_ON_ERROR>|null  $flags
+         * @return ($key is null ? array<mixed>|bool|float|int|string|null : mixed)
+         */
+        public function json($key = null, $default = null, $flags = null);
+
+        /**
+         * @param  int-mask<JSON_BIGINT_AS_STRING, JSON_INVALID_UTF8_IGNORE, JSON_INVALID_UTF8_SUBSTITUTE, JSON_OBJECT_AS_ARRAY, JSON_THROW_ON_ERROR>|null  $flags
+         * @return array<mixed>|bool|float|int|object|string|null
+         */
+        public function object($flags = null);
+
+        /**
+         * @param  string|null  $key
+         * @param  int-mask<JSON_BIGINT_AS_STRING, JSON_INVALID_UTF8_IGNORE, JSON_INVALID_UTF8_SUBSTITUTE, JSON_OBJECT_AS_ARRAY, JSON_THROW_ON_ERROR>|null  $flags
+         * @return \Illuminate\Support\Collection<array-key, mixed>
+         */
+        public function collect($key = null, $flags = null);
+
+        /**
+         * @return resource
+         */
+        public function resource();
+    }
 
     /**
      * @mixin PendingRequest
