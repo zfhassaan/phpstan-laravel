@@ -285,6 +285,8 @@ services:
   - class: CalebDW\PhpstanLaravel\PhpDoc\ModelPropertyTypeNodeResolverExtension
     arguments: {active: %laravel.modelPropertyType%}
     tags: [phpstan.phpDoc.typeNodeResolverExtension]
+  - class: CalebDW\PhpstanLaravel\Types\BuilderOfTypeNodeResolverExtension
+    tags: [phpstan.phpDoc.typeNodeResolverExtension]
   - class: CalebDW\PhpstanLaravel\Support\ModelHelper
   - class: CalebDW\PhpstanLaravel\Support\ManagerHelper
   - class: CalebDW\PhpstanLaravel\Support\AuthHelper
@@ -304,7 +306,10 @@ services:
   - class: CalebDW\PhpstanLaravel\Support\ModelRuleHelper
   - class: CalebDW\PhpstanLaravel\Support\BuilderHelper
     arguments: {checkProperties: %laravel.modelPropertyType%}
+  - class: CalebDW\PhpstanLaravel\Support\RelationExistenceHelper
   - class: CalebDW\PhpstanLaravel\Rules\RelationExistenceRule
+    tags: [phpstan.rules.rule]
+  - class: CalebDW\PhpstanLaravel\Rules\ModelRelationDefaultsRule
     tags: [phpstan.rules.rule]
   - class: CalebDW\PhpstanLaravel\Rules\CheckDispatchArgumentTypesCompatibleWithClassConstructorRule
     arguments: {dispatchableClass: Illuminate\Foundation\Bus\Dispatchable}
@@ -411,6 +416,14 @@ services:
     tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
   - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\EnumerableToArrayExtension
     tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+  - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\ModelSerializationDynamicMethodReturnTypeExtension
+    tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+  - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\PaginatorGetCollectionExtension
+    arguments: {class: Illuminate\Pagination\AbstractPaginator}
+    tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+  - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\PaginatorGetCollectionExtension
+    arguments: {class: Illuminate\Pagination\AbstractCursorPaginator}
+    tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
   - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\EloquentGetDictionaryExtension
     tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
   - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\EnumerableValueExtension
@@ -421,11 +434,16 @@ services:
     tags: [phpstan.methodParameterClosureTypeExtension]
   - class: CalebDW\PhpstanLaravel\Parameters\EloquentBuilderRelationParameterExtension
     tags: [phpstan.methodParameterClosureTypeExtension]
+  - class: CalebDW\PhpstanLaravel\Parameters\EloquentBuilderWhereParameterExtension
+    tags: [phpstan.methodParameterClosureTypeExtension]
   - class: CalebDW\PhpstanLaravel\Parameters\ModelRelationParameterExtension
+    tags: [phpstan.staticMethodParameterClosureTypeExtension]
+  - class: CalebDW\PhpstanLaravel\Parameters\ModelWhereParameterExtension
     tags: [phpstan.staticMethodParameterClosureTypeExtension]
   - class: CalebDW\PhpstanLaravel\Parameters\ArrMapSpreadParameterExtension
     tags: [phpstan.staticMethodParameterClosureTypeExtension]
   - class: CalebDW\PhpstanLaravel\Support\RelationClosureHelper
+  - class: CalebDW\PhpstanLaravel\Support\OrWhereClosureHelper
   - class: CalebDW\PhpstanLaravel\Support\AppMakeHelper
   - class: CalebDW\PhpstanLaravel\Support\ConsoleApplicationResolver
   - class: CalebDW\PhpstanLaravel\Support\ConsoleApplicationHelper
@@ -436,7 +454,7 @@ services:
     arguments: {configDirectories: %laravel.configDirectories%, parser: @currentPhpVersionSimpleDirectParser, treatPhpDocTypesAsCertain: %treatPhpDocTypesAsCertain%}
   - class: CalebDW\PhpstanLaravel\Support\ColumnHelper
   - class: CalebDW\PhpstanLaravel\Support\SelectHelper
-  - class: CalebDW\PhpstanLaravel\Support\FormRequestHelper
+  - class: CalebDW\PhpstanLaravel\Support\ValidationHelper
     arguments: {parser: @currentPhpVersionSimpleDirectParser}
   - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\FormRequestValidatedExtension
     tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
@@ -444,6 +462,12 @@ services:
     tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
   - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\RequestValidateExtension
     tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+  - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\ValidationFactoryExtension
+    tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+  - class: CalebDW\PhpstanLaravel\ReturnTypes\Methods\ValidatorSafeExtension
+    tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+  - class: CalebDW\PhpstanLaravel\ReturnTypes\StaticMethods\ValidatorFacadeExtension
+    tags: [phpstan.broker.dynamicStaticMethodReturnTypeExtension]
   - class: CalebDW\PhpstanLaravel\Types\RequestValidateTypeSpecifyingExtension
     tags: [phpstan.typeSpecifier.methodTypeSpecifyingExtension]
   - class: CalebDW\PhpstanLaravel\Rules\NoAuthFacadeInRequestScopeRule

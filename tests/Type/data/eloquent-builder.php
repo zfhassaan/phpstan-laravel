@@ -89,10 +89,10 @@ function test(
 
     $relation = random_int(0, 1) ? 'accounts' : 'address';
     User::query()->whereHas($relation, function (Builder $query) {
-        assertType('Illuminate\Database\Eloquent\Builder<App\Account|App\Address>', $query);
+        assertType('Illuminate\Database\Eloquent\Builder<App\Account>|Illuminate\Database\Eloquent\Builder<App\Address>', $query);
     });
     User::query()->withWhereHas($relation, function (Builder|Relation $query) {
-        assertType('Illuminate\Database\Eloquent\Builder<App\Account|App\Address>|Illuminate\Database\Eloquent\Relations\HasMany<App\Account, App\User>|Illuminate\Database\Eloquent\Relations\MorphMany<App\Address, App\User>', $query);
+        assertType('Illuminate\Database\Eloquent\Builder<App\Account>|Illuminate\Database\Eloquent\Builder<App\Address>|Illuminate\Database\Eloquent\Relations\HasMany<App\Account, App\User>|Illuminate\Database\Eloquent\Relations\MorphMany<App\Address, App\User>', $query);
     });
 
     $relation = random_int(0, 1) ? 'accounts.posts' : 'address';
@@ -105,10 +105,10 @@ function test(
 
     $relation = random_int(0, 1) ? $user->accounts() : $user->address();
     User::query()->whereHas($relation, function (Builder $query) {
-        assertType('Illuminate\Database\Eloquent\Builder<App\Account|App\Address>', $query);
+        assertType('Illuminate\Database\Eloquent\Builder<App\Account>|Illuminate\Database\Eloquent\Builder<App\Address>', $query);
     });
     User::query()->withWhereHas($relation, function (Builder|Relation $query) {
-        assertType('Illuminate\Database\Eloquent\Builder<App\Account|App\Address>|Illuminate\Database\Eloquent\Relations\HasMany<App\Account, App\User>|Illuminate\Database\Eloquent\Relations\MorphMany<App\Address, App\User>', $query);
+        assertType('Illuminate\Database\Eloquent\Builder<App\Account>|Illuminate\Database\Eloquent\Builder<App\Address>|Illuminate\Database\Eloquent\Relations\HasMany<App\Account, App\User>|Illuminate\Database\Eloquent\Relations\MorphMany<App\Address, App\User>', $query);
     });
 
 
@@ -120,19 +120,19 @@ function test(
         assertType('Illuminate\Database\Eloquent\Builder<App\Account>|Illuminate\Database\Eloquent\Relations\HasMany<App\Account, App\User>', $query);
     });
 
-    $userOrTeamBuilder->has('address', function ($query) {
-        assertType('Illuminate\Database\Eloquent\Builder<App\Address>', $query);
+    $userOrTeamBuilder->has('address', callback: function ($query) {
+        assertType('App\ChildTeamBuilder|Illuminate\Database\Eloquent\Builder<App\Address>', $query);
     });
 
-    $userOrTeamBuilder->has('members', function ($query) {
+    $userOrTeamBuilder->has('members', callback: function ($query) {
         assertType('Illuminate\Database\Eloquent\Builder<App\User>', $query);
     });
 
-    $userOrTeamBuilder->has('transactions', function ($query) {
+    $userOrTeamBuilder->has('transactions', callback: function ($query) {
         assertType('Illuminate\Database\Eloquent\Builder<App\Transaction>', $query);
     });
 
-    Address::query()->hasMorph('addressable', [User::class, Team::class], callable: function ($query, $morph) {
+    Address::query()->hasMorph('addressable', [User::class, Team::class], callback: function ($query, $morph) {
         assertType('App\ChildTeamBuilder|Illuminate\Database\Eloquent\Builder<App\User>', $query);
         assertType('string', $morph);
     });
@@ -147,7 +147,7 @@ function test(
         assertType('string', $morph);
     });
 
-    Address::query()->doesntHaveMorph('addressable', [User::class], function (Builder $query, $morph) {
+    Address::query()->doesntHaveMorph('addressable', [User::class], callback: function (Builder $query, $morph) {
         assertType('Illuminate\Database\Eloquent\Builder<App\User>', $query);
         assertType('string', $morph);
     });
@@ -172,14 +172,12 @@ function test(
         assertType('string', $morph);
     });
 
-    Address::query()->whereMorphRelation('addressable', [User::class], function (Builder $query, $morph) {
+    Address::query()->whereMorphRelation('addressable', [User::class], function (Builder $query) {
         assertType('Illuminate\Database\Eloquent\Builder<App\User>', $query);
-        assertType('string', $morph);
     });
 
-    Address::query()->orWhereMorphRelation('addressable', [User::class], function (Builder $query, $morph) {
+    Address::query()->orWhereMorphRelation('addressable', [User::class], function (Builder $query) {
         assertType('Illuminate\Database\Eloquent\Builder<App\User>', $query);
-        assertType('string', $morph);
     });
 
     User::query()->firstWhere(function (Builder $query) {
@@ -250,13 +248,13 @@ function test(
     assertType('App\PostBuilder<App\Post>', $post->newQueryWithoutScope('foo'));
     assertType('App\PostBuilder<App\Post>', $post->newQueryForRestoration([1]));
 
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth->newQuery());
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth->newModelQuery());
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth->newQueryWithoutRelationships());
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth->newQueryWithoutScopes());
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth->newQueryWithoutScope('foo'));
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth->newQueryForRestoration([1]));
-    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $userAndAuth::query());
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth->newQuery());
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth->newModelQuery());
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth->newQueryWithoutRelationships());
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth->newQueryWithoutScopes());
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth->newQueryWithoutScope('foo'));
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth->newQueryForRestoration([1]));
+    assertType('Illuminate\Database\Eloquent\Builder<App\User&EloquentBuilder\OnlyUsers>', $userAndAuth::query());
 
     assertType('Illuminate\Support\LazyCollection<int, App\User>', User::query()->lazy());
     assertType('Illuminate\Support\LazyCollection<int, App\User>', User::query()->lazyById());

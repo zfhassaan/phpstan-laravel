@@ -11,8 +11,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Enumerable;
 use Iterator;
 use IteratorAggregate;
-use PhpParser\Node\Expr\ClassConstFetch;
-use PhpParser\Node\Name;
 use PHPStan\Analyser\OutOfClassScope;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ReflectionProvider;
@@ -26,6 +24,7 @@ use PHPStan\Type\StringType;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\TypeTraverser;
+use PHPStan\Type\TypeUtils;
 use PHPStan\Type\UnionType;
 use Traversable;
 
@@ -47,8 +46,10 @@ final class CollectionHelper
     /** @var array<string, Type|null> */
     private array $collectionTypes = [];
 
-    public function __construct(private ReflectionProvider $reflectionProvider)
-    {
+    public function __construct(
+        private ReflectionProvider $reflectionProvider,
+        private ReflectionHelper $reflectionHelper,
+    ) {
     }
 
     /**
@@ -255,19 +256,38 @@ final class CollectionHelper
             return null;
         }
 
-        $attrs = $modelReflection->getNativeReflection()->getAttributes(CollectedBy::class);
+        $collectionClass = $this->reflectionHelper->attributeClassName($modelReflection, CollectedBy::class);
 
-        if ($attrs !== []) {
-            $expr =  $attrs[0]->getArgumentsExpressions()[0];
-
-            if ($expr instanceof ClassConstFetch && $expr->class instanceof Name) {
-                return new ObjectType($expr->class->toString());
-            }
+        if ($collectionClass !== null) {
+            return new ObjectType($collectionClass);
         }
 
         return $modelReflection->getNativeMethod('newCollection')
             ->getVariants()[0]
             ->getReturnType();
+    }
+
+    public function determineCollectionTypeFromModels(Type $modelType): Type|null
+    {
+        $types = [];
+
+        foreach (TypeUtils::flattenTypes($modelType) as $type) {
+            foreach ($type->getObjectClassNames() as $className) {
+                if (! $this->reflectionProvider->hasClass($className)) {
+                    continue;
+                }
+
+                if (! $this->reflectionProvider->getClass($className)->is(Model::class)) {
+                    continue;
+                }
+
+                $types[] = $this->determineCollectionType($className, $type);
+            }
+        }
+
+        $types = array_filter($types);
+
+        return $types === [] ? null : TypeCombinator::union(...$types);
     }
 
     public function determineCollectionType(string $modelClassName, Type|null $modelType = null): Type|null

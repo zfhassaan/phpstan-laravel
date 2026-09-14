@@ -424,11 +424,17 @@ collection half.
 
 ### Paginators
 
-A paginator over models hands back an Eloquent collection:
+A paginator over models hands back that model's collection, including a
+custom `newCollection()` / `CollectedBy` class. Non-model items stay a
+Support collection. Keys stay the paginator's `TKey` (typically `int`)
+rather than a benevolent `int|string`.
 
 ```php
 User::paginate()->getCollection();
 // Illuminate\Database\Eloquent\Collection<int, App\User>
+
+Account::paginate()->getCollection();
+// App\AccountCollection<int, App\Account>
 ```
 
 ## Managers
@@ -560,7 +566,8 @@ prefixed identifier, so you can ignore a category precisely. See
 
 - **`modelForwardingToBuilder`** and **`modelStaticForwardingToBuilder`**
   (both off) for codebases that prefer `User::query()->where(...)` to
-  `User::where(...)`.
+  `User::where(...)`. Larastan's later `noImplicitQueryBuilderCall` is the
+  same idea as one toggle; here instance and static stay separate.
 - **`configAccessor`** (on), described above.
 - **`strictContracts`** (off). By default `resolve(SomeContract::class)`
   infers the concrete class the container is bound to, which is convenient but

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CalebDW\PhpstanLaravel\ReturnTypes\Methods;
 
-use CalebDW\PhpstanLaravel\Support\FormRequestHelper;
 use CalebDW\PhpstanLaravel\Support\TypeHelper;
+use CalebDW\PhpstanLaravel\Support\ValidationHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\ValidatedInput;
 use PhpParser\Node\Expr\MethodCall;
@@ -24,7 +24,7 @@ use function count;
 final class FormRequestSafeDynamicMethodReturnTypeExtension implements DynamicMethodReturnTypeExtension
 {
     public function __construct(
-        private FormRequestHelper $formRequestHelper,
+        private ValidationHelper $validationHelper,
         private TypeHelper $typeHelper,
     ) {
     }
@@ -55,7 +55,7 @@ final class FormRequestSafeDynamicMethodReturnTypeExtension implements DynamicMe
         }
 
         if ($shape !== null) {
-            return $this->formRequestHelper->pick($shape, $keys);
+            return $this->validationHelper->pick($shape, $keys);
         }
 
         $builder = ConstantArrayTypeBuilder::createEmpty();
@@ -72,7 +72,7 @@ final class FormRequestSafeDynamicMethodReturnTypeExtension implements DynamicMe
         $shapes = [];
 
         foreach ($calledOn->getObjectClassReflections() as $class) {
-            $shape = $this->formRequestHelper->validatedShape($class);
+            $shape = $this->validationHelper->validatedShape($class);
 
             if ($shape === null) {
                 continue;

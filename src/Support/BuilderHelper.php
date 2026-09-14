@@ -15,19 +15,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Str;
-use PhpParser\Node\Expr\ClassConstFetch;
-use PhpParser\Node\Name;
+use PHPStan\Analyser\OutOfClassScope;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Reflection\MissingMethodFromReflectionException;
+use PHPStan\Reflection\ParametersAcceptorSelector;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\ShouldNotHappenException;
 use PHPStan\TrinaryLogic;
 use PHPStan\Type\ErrorType;
 use PHPStan\Type\Generic\GenericObjectType;
+use PHPStan\Type\NeverType;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
+use PHPStan\Type\TypeUtils;
 use PHPStan\Type\TypeWithClassName;
 use PHPStan\Type\VerbosityLevel;
 
@@ -36,6 +38,7 @@ use function array_key_exists;
 use function array_shift;
 use function collect;
 use function count;
+use function explode;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -62,6 +65,7 @@ final class BuilderHelper
         private ReflectionProvider $reflectionProvider,
         private bool $checkProperties,
         private MacroMethodsClassReflectionExtension $macroMethodsClassReflectionExtension,
+        private ReflectionHelper $reflectionHelper,
     ) {
     }
 
@@ -139,13 +143,7 @@ final class BuilderHelper
             // Check for Scope attribute
             if ($reflection->hasNativeMethod($methodName)) {
                 $methodReflection  = $reflection->getNativeMethod($methodName);
-                $hasScopeAttribute = false;
-                foreach ($methodReflection->getAttributes() as $attribute) {
-                    if ($attribute->getName() === Scope::class) {
-                        $hasScopeAttribute = true;
-                        break;
-                    }
-                }
+                $hasScopeAttribute = $this->reflectionHelper->hasMethodAttribute($methodReflection, Scope::class);
 
                 if (! $methodReflection->isPublic() && $hasScopeAttribute) {
                     $parametersAcceptor = $methodReflection->getVariants()[0];
@@ -265,14 +263,14 @@ final class BuilderHelper
         $method          = $modelReflection->getNativeMethod('newEloquentBuilder');
 
         if ($method->getDeclaringClass()->getName() === Model::class) {
-            $attrs = $modelReflection->getNativeReflection()->getAttributes(UseEloquentBuilder::class);
+            $builderClass = $this->reflectionHelper->attributeClassName(
+                $modelReflection,
+                UseEloquentBuilder::class,
+                inherited: false,
+            );
 
-            if ($attrs !== []) {
-                $expr =  $attrs[0]->getArgumentsExpressions()[0];
-
-                if ($expr instanceof ClassConstFetch && $expr->class instanceof Name) {
-                    return $expr->class->toString();
-                }
+            if ($builderClass !== null) {
+                return $builderClass;
             }
         }
 
@@ -319,6 +317,94 @@ final class BuilderHelper
             ->map(fn ($models, $builder) => $this->getBuilderType($builder, TypeCombinator::union(...$models)))
             ->values()
             ->pipe(static fn ($types) => TypeCombinator::union(...$types));
+    }
+
+    public function relationType(Type $modelType, Type $relationNames): Type|null
+    {
+        if (TypeUtils::containsTemplateType($relationNames) || ! $relationNames->isConstantScalarValue()->yes()) {
+            return null;
+        }
+
+        $results = [];
+
+        foreach ($relationNames->getConstantStrings() as $relation) {
+            $relatedType  = $modelType;
+            $relationType = $modelType;
+
+            foreach (explode('.', explode(':', $relation->getValue(), 2)[0]) as $name) {
+                if ($name === '') {
+                    continue 2;
+                }
+
+                $relations = [];
+
+                foreach (TypeUtils::flattenTypes($relatedType) as $type) {
+                    if (! $type->hasMethod($name)->yes()) {
+                        continue;
+                    }
+
+                    $returnType = ParametersAcceptorSelector::selectFromTypes(
+                        [],
+                        $type->getMethod($name, new OutOfClassScope())->getVariants(),
+                        false,
+                    )->getReturnType();
+
+                    if (! (new ObjectType(Relation::class))->isSuperTypeOf($returnType)->yes()) {
+                        continue;
+                    }
+
+                    $relations[] = $returnType;
+                }
+
+                if ($relations === []) {
+                    continue 2;
+                }
+
+                $relationType = TypeCombinator::union(...$relations);
+                $relatedType  = $relationType->getTemplateType(Relation::class, 'TRelatedModel');
+            }
+
+            $results[] = $relationType;
+        }
+
+        return $results === [] ? null : TypeCombinator::union(...$results);
+    }
+
+    public function determineBuilderType(Type $modelType, Type|null $relationNames = null): Type
+    {
+        if ($relationNames !== null) {
+            $related = $this->relationType($modelType, $relationNames)?->getTemplateType(Relation::class, 'TRelatedModel');
+
+            if ($related !== null) {
+                $modelType = $related;
+            }
+        }
+
+        $results = [];
+
+        foreach (TypeUtils::flattenTypes($modelType) as $type) {
+            foreach ($type->getObjectClassNames() as $className) {
+                if (! $this->reflectionProvider->hasClass($className)) {
+                    continue;
+                }
+
+                $class = $this->reflectionProvider->getClass($className);
+
+                if (! $class->is(Model::class)) {
+                    continue;
+                }
+
+                try {
+                    $builderClass = $this->determineBuilderName($className);
+                } catch (MissingMethodFromReflectionException) {
+                    $builderClass = EloquentBuilder::class;
+                }
+
+                $results[] = $this->getBuilderType($builderClass, $type);
+            }
+        }
+
+        return $results === [] ? new NeverType() : TypeCombinator::union(...$results);
     }
 
     public function methodIsBuilderPassthru(string $methodName): bool
