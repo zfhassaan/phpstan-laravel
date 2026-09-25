@@ -48,10 +48,12 @@ class GeneralTypeTest extends TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-pipe-through.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-reduce-spread.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-only-except.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/data/collection-of-type.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-intersection-types.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-make-static.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-reject.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-select.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/data/collection-structure.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-stubs.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-to-array.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/collection-transform.php');
@@ -78,6 +80,7 @@ class GeneralTypeTest extends TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/data/enumerable-pluck.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/environment-helper.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/facades.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/data/factory-of-type.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/form-request.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/gate-facade.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/group-by.php');
@@ -89,6 +92,7 @@ class GeneralTypeTest extends TypeInferenceTestCase
         yield from self::gatherAssertTypes(__DIR__ . '/data/mixin-infinite-recursion.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/model-attributes.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/model-collections.php');
+        yield from self::gatherAssertTypes(__DIR__ . '/data/model-class-properties.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/model-factories.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/model-keys.php');
         yield from self::gatherAssertTypes(__DIR__ . '/data/model-methods.php');
@@ -121,8 +125,11 @@ class GeneralTypeTest extends TypeInferenceTestCase
         if (laravel_version_compare('13.0.0', '>=')) {
             yield from self::gatherAssertTypes(__DIR__ . '/data/l13-cache-remember.php');
             yield from self::gatherAssertTypes(__DIR__ . '/data/l13-eloquent-builder-model-keys.php');
+            yield from self::gatherAssertTypes(__DIR__ . '/data/l13-model-class-properties.php');
             yield from self::gatherAssertTypes(__DIR__ . '/data/l13-model-counter-methods.php');
             yield from self::gatherAssertTypes(__DIR__ . '/data/l13-model-serialization.php');
+        } else {
+            yield from self::gatherAssertTypes(__DIR__ . '/data/l12-model-class-properties.php');
         }
 
         //##############################################################################################################

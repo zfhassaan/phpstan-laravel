@@ -272,6 +272,16 @@ final class BuilderHelper
             if ($builderClass !== null) {
                 return $builderClass;
             }
+
+            $builderClass = $this->reflectionHelper->classStringPropertyDefault($modelReflection, 'builder');
+
+            if (
+                $builderClass !== null
+                && $this->reflectionProvider->hasClass($builderClass)
+                && $this->reflectionProvider->getClass($builderClass)->is(EloquentBuilder::class)
+            ) {
+                return $builderClass;
+            }
         }
 
         $returnType = $method->getVariants()[0]->getReturnType();
@@ -321,15 +331,21 @@ final class BuilderHelper
 
     public function relationType(Type $modelType, Type $relationNames): Type|null
     {
+        return $this->resolveRelationType($modelType, $relationNames)[0];
+    }
+
+    /** @return array{Type|null, bool} */
+    private function resolveRelationType(Type $modelType, Type $relationNames): array
+    {
         if (TypeUtils::containsTemplateType($relationNames) || ! $relationNames->isConstantScalarValue()->yes()) {
-            return null;
+            return [null, false];
         }
 
-        $results = [];
+        $results        = [];
+        $unknownFailure = false;
 
         foreach ($relationNames->getConstantStrings() as $relation) {
-            $relatedType  = $modelType;
-            $relationType = $modelType;
+            $relatedType = $modelType;
 
             foreach (explode('.', explode(':', $relation->getValue(), 2)[0]) as $name) {
                 if ($name === '') {
@@ -340,6 +356,8 @@ final class BuilderHelper
 
                 foreach (TypeUtils::flattenTypes($relatedType) as $type) {
                     if (! $type->hasMethod($name)->yes()) {
+                        $unknownFailure = $unknownFailure || $this->isUnknownModelType($type);
+
                         continue;
                     }
 
@@ -350,6 +368,8 @@ final class BuilderHelper
                     )->getReturnType();
 
                     if (! (new ObjectType(Relation::class))->isSuperTypeOf($returnType)->yes()) {
+                        $unknownFailure = $unknownFailure || $this->isUnknownModelType($type);
+
                         continue;
                     }
 
@@ -367,16 +387,36 @@ final class BuilderHelper
             $results[] = $relationType;
         }
 
-        return $results === [] ? null : TypeCombinator::union(...$results);
+        return [$results === [] ? null : TypeCombinator::union(...$results), $unknownFailure];
+    }
+
+    private function isUnknownModelType(Type $type): bool
+    {
+        $classes = $type->getObjectClassReflections();
+
+        if ($classes === []) {
+            return true;
+        }
+
+        foreach ($classes as $class) {
+            if ($class->is(Model::class) && $class->isAbstract()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function determineBuilderType(Type $modelType, Type|null $relationNames = null): Type
     {
         if ($relationNames !== null) {
-            $related = $this->relationType($modelType, $relationNames)?->getTemplateType(Relation::class, 'TRelatedModel');
+            [$relationType, $unknownFailure] = $this->resolveRelationType($modelType, $relationNames);
+            $related                         = $relationType?->getTemplateType(Relation::class, 'TRelatedModel');
 
             if ($related !== null) {
                 $modelType = $related;
+            } elseif ($unknownFailure) {
+                $modelType = new ObjectType(Model::class);
             }
         }
 

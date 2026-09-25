@@ -3,12 +3,15 @@
 namespace RelationshipQueryCallbacks;
 
 use App\Account;
+use App\BareRelations\Owner;
 use App\Comment;
 use App\Post;
 use App\PostComment;
 use App\User;
 use Illuminate\Contracts\Database\Eloquent\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 use function PHPStan\Testing\assertType;
@@ -47,6 +50,34 @@ function ordinaryRelationships(string $relation, string $unknown, User $user): v
 
     $builder->whereDoesntHave($user->accounts(), function (Builder $query) {
         assertType('Illuminate\Database\Eloquent\Builder<App\Account>', $query);
+    });
+}
+
+function bareRelationships(): void
+{
+    Owner::query()->whereHas('items', function (Builder $query) {
+        assertType('Illuminate\Database\Eloquent\Builder<Illuminate\Database\Eloquent\Model>', $query);
+    });
+
+    Owner::query()->whereHas('items.category.labels', function (Builder $query) {
+        assertType('Illuminate\Database\Eloquent\Builder<Illuminate\Database\Eloquent\Model>', $query);
+    });
+}
+
+abstract class AbstractOwner extends Model
+{
+    /** @return HasMany<Post, $this> */
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
+    }
+}
+
+/** @param Builder<AbstractOwner> $builder */
+function abstractRelationships(Builder $builder): void
+{
+    $builder->whereHas('posts', function (Builder $query) {
+        assertType('App\PostBuilder<App\Post>', $query);
     });
 }
 

@@ -118,6 +118,8 @@ function test(
     assertType('Illuminate\Database\Eloquent\Collection<int, App\User>', $users->getEager());
     assertType('Illuminate\Database\Eloquent\Collection<int, App\User>', $users->get());
     assertType('Illuminate\Database\Eloquent\Builder<App\User>', $users->getQuery());
+    assertType('Illuminate\Database\Eloquent\Builder<App\User>', $users->getRelationExistenceCountQuery(User::query(), Post::query()));
+    assertType('App\PostBuilder<App\Post>', $appUser->posts()->getRelationExistenceCountQuery(Post::query(), User::query()));
     assertType('App\User', $users->make());
     assertType('Illuminate\Database\Eloquent\Relations\BelongsTo<App\Group, App\Account>|Illuminate\Database\Eloquent\Relations\BelongsTo<App\Group, App\User>', $union->group());
     assertType("Illuminate\Database\Eloquent\Relations\BelongsToMany<App\Post, App\Account, Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'>|Illuminate\Database\Eloquent\Relations\BelongsToMany<App\Post, App\User, Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'>", $union->posts());
@@ -147,8 +149,13 @@ function test(
     assertType('App\AccountCollection<int, App\Account>', $user->accountsCamel()->makeMany([]));
     assertType('App\AccountCollection<int, App\Account>', $user->accountsCamel()->createMany([]));
     assertType('App\AccountCollection<int, App\Account>', $user->accountsCamel()->createManyQuietly([]));
+    assertType('App\AccountCollection<int, App\Account>', $user->accountsCamel()->forceCreateMany([]));
+    assertType('App\AccountCollection<int, App\Account>', $user->accountsCamel()->forceCreateManyQuietly([]));
     assertType('App\Account', $user->accountsCamel()->make());
     assertType('App\Account', $user->accountsCamel()->create());
+    assertType('App\Account', $user->accountsCamel()->createQuietly());
+    assertType('App\Account', $user->accountsCamel()->forceCreate());
+    assertType('App\Account', $user->accountsCamel()->forceCreateQuietly());
     assertType('App\Account|false', $user->accountsCamel()->save(new Account()));
     assertType('App\Account|false', $user->accountsCamel()->saveQuietly(new Account()));
 
@@ -360,6 +367,11 @@ class CustomBuilderBelongsToMany extends BelongsToMany
     {
         assertType('App\ChildTeamBuilder', $this->prepareQueryBuilder());
         assertType('App\ChildTeamBuilder', $this->getRelationQuery());
+        assertType('App\ChildTeamBuilder', $this->getRelationExistenceCountQuery(\App\Team::query(), User::query()));
+
+        $this->firstWhere(function ($query) {
+            assertType('App\ChildTeamBuilder', $query);
+        });
     }
 }
 
@@ -371,4 +383,81 @@ class CustomBuilderHasManyThrough extends HasManyThrough
         assertType('App\PostBuilder<App\Post>', $this->prepareQueryBuilder());
         assertType('App\PostBuilder<App\Post>', $this->getRelationQuery());
     }
+}
+
+function firstWhereCallbacks(User $user, string|null $operator): void
+{
+    assertType('(App\Post&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot})|null', $user->posts()->firstWhere(function ($query) {
+        assertType('App\PostBuilder<App\Post>', $query);
+    }));
+
+    $user->roles()->firstWhere(function ($query) {
+        assertType('Illuminate\Database\Eloquent\Builder<App\Role>', $query);
+    });
+
+    $user->posts()->firstWhere(function ($query) {
+        assertType('Illuminate\Database\Query\Builder', $query);
+    }, '=', 2);
+
+    $user->posts()->firstWhere(value: 2, column: function ($query) {
+        assertType('App\PostBuilder<App\Post>', $query);
+    }, operator: null);
+
+    $user->posts()->firstWhere(function ($query) {
+        assertType('App\PostBuilder<App\Post>|Illuminate\Database\Query\Builder', $query);
+    }, $operator, 2);
+}
+
+function chunkCallbacks(User $user): void
+{
+    $user->accounts()->chunk(10, fn ($accounts, $page) => assertType('Illuminate\Database\Eloquent\Collection<int, App\Account>', $accounts));
+    $user->accounts()->each(fn ($account, $key) => assertType('App\Account', $account));
+
+    $user->roles()->chunk(10, function ($roles, $page) {
+        assertType('App\RoleCollection<int, App\Role&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot}>', $roles);
+        assertType('int', $page);
+    });
+    $user->roles()->chunkById(10, function ($roles, $page) {
+        assertType('App\RoleCollection<int, App\Role&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot}>', $roles);
+        assertType('int', $page);
+    });
+    $user->roles()->chunkByIdDesc(10, function ($roles, $page) {
+        assertType('App\RoleCollection<int, App\Role&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot}>', $roles);
+        assertType('int', $page);
+    });
+    $user->roles()->each(function ($role, $key) {
+        assertType('App\Role&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot}', $role);
+        assertType('int', $key);
+    });
+    $user->roles()->eachById(function ($role, $key) {
+        assertType('App\Role&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot}', $role);
+        assertType('int', $key);
+    });
+    $user->posts()->where('id', '>', 1)->chunk(10, function ($posts) {
+        assertType('Illuminate\Database\Eloquent\Collection<int, App\Post&object{pivot: Illuminate\Database\Eloquent\Relations\Pivot}>', $posts);
+    });
+
+    $user->parts()->chunk(10, function ($parts, $page) {
+        assertType('Illuminate\Database\Eloquent\Collection<int, App\Part>', $parts);
+        assertType('int', $page);
+    });
+    $user->parts()->chunkById(10, function ($parts, $page) {
+        assertType('Illuminate\Database\Eloquent\Collection<int, App\Part>', $parts);
+        assertType('int', $page);
+    });
+    $user->parts()->chunkByIdDesc(10, function ($parts, $page) {
+        assertType('Illuminate\Database\Eloquent\Collection<int, App\Part>', $parts);
+        assertType('int', $page);
+    });
+    $user->parts()->each(function ($part, $key) {
+        assertType('App\Part', $part);
+        assertType('int', $key);
+    });
+    $user->parts()->eachById(function ($part, $key) {
+        assertType('App\Part', $part);
+        assertType('int', $key);
+    });
+    $user->car()->chunk(10, function ($cars) {
+        assertType('Illuminate\Database\Eloquent\Collection<int, App\Car>', $cars);
+    });
 }
